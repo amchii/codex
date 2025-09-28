@@ -34,6 +34,7 @@ pub(crate) async fn stream_chat_completions(
     model_family: &ModelFamily,
     client: &reqwest::Client,
     provider: &ModelProviderInfo,
+    model_extra_body: Option<&serde_json::Value>,
 ) -> Result<ResponseStream> {
     if prompt.output_schema.is_some() {
         return Err(CodexErr::UnsupportedOperation(
@@ -274,12 +275,17 @@ pub(crate) async fn stream_chat_completions(
     }
 
     let tools_json = create_tools_json_for_chat_completions_api(&prompt.tools)?;
-    let payload = json!({
+    let mut payload = json!({
         "model": model_family.slug,
         "messages": messages,
         "stream": true,
         "tools": tools_json,
     });
+
+    // Merge any user-provided extra body into the Chat Completions payload.
+    if let Some(extra) = model_extra_body {
+        crate::client_common::merge_json_values(extra, &mut payload);
+    }
 
     debug!(
         "POST to {}: {}",

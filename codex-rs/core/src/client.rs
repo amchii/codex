@@ -127,6 +127,7 @@ impl ModelClient {
                     &self.config.model_family,
                     &self.client,
                     &self.provider,
+                    self.config.model_extra_body.as_ref(),
                 )
                 .await?;
 
@@ -228,6 +229,11 @@ impl ModelClient {
         let mut payload_json = serde_json::to_value(&payload)?;
         if azure_workaround {
             attach_item_ids(&mut payload_json, &input_with_instructions);
+        }
+
+        // Merge any user-provided `model_extra_body` into the request payload.
+        if let Some(extra) = &self.config.model_extra_body {
+            crate::client_common::merge_json_values(extra, &mut payload_json);
         }
 
         let max_attempts = self.provider.request_max_retries();
