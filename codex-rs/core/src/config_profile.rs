@@ -5,6 +5,7 @@ use crate::protocol::AskForApproval;
 use codex_protocol::config_types::ReasoningEffort;
 use codex_protocol::config_types::ReasoningSummary;
 use codex_protocol::config_types::Verbosity;
+use toml::Value as TomlValue;
 
 /// Collection of common configuration options that a user can define as a unit
 /// in `config.toml`.
@@ -20,6 +21,10 @@ pub struct ConfigProfile {
     pub model_verbosity: Option<Verbosity>,
     pub chatgpt_base_url: Option<String>,
     pub experimental_instructions_file: Option<PathBuf>,
+    /// Optional arbitrary JSON-like structure that will be merged into the
+    /// model request body. This accepts a TOML table in `config.toml` and is
+    /// converted to JSON at runtime.
+    pub model_extra_body: Option<TomlValue>,
 }
 
 impl From<ConfigProfile> for codex_protocol::mcp_protocol::Profile {

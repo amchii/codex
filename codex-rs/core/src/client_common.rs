@@ -206,6 +206,26 @@ impl Stream for ResponseStream {
     }
 }
 
+/// Merge `extra` into `target` recursively. When both sides contain objects,
+/// object keys are merged and values from `extra` override or are recursively
+/// merged into `target`. For non-object values `extra` replaces `target`.
+pub fn merge_json_values(extra: &Value, target: &mut Value) {
+    match (extra.as_object(), target.as_object_mut()) {
+        (Some(extra_map), Some(target_map)) => {
+            for (k, v) in extra_map {
+                if let Some(existing) = target_map.get_mut(k) {
+                    merge_json_values(v, existing);
+                } else {
+                    target_map.insert(k.clone(), v.clone());
+                }
+            }
+        }
+        _ => {
+            *target = extra.clone();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::model_family::find_family_for_model;

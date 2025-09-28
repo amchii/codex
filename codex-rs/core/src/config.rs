@@ -75,6 +75,12 @@ pub struct Config {
     /// Info needed to make an API request to the model.
     pub model_provider: ModelProviderInfo,
 
+    /// Optional extra JSON that will be merged into the outgoing request
+    /// payload sent to the model provider. This is populated from
+    /// `model_extra_body` in `config.toml` (or a profile) and is stored as a
+    /// `serde_json::Value` for easy merging.
+    pub model_extra_body: Option<serde_json::Value>,
+
     /// Approval policy for executing commands.
     pub approval_policy: AskForApproval,
 
@@ -624,6 +630,10 @@ pub struct ConfigToml {
     /// Provider to use from the model_providers map.
     pub model_provider: Option<String>,
 
+    /// Arbitrary extra structure to merge into the model request body. This
+    /// is parsed as TOML but will be converted to JSON at runtime.
+    pub model_extra_body: Option<TomlValue>,
+
     /// Size of the context window for the model, in tokens.
     pub model_context_window: Option<u64>,
 
@@ -1006,6 +1016,14 @@ impl Config {
             .or(cfg.review_model)
             .unwrap_or_else(default_review_model);
 
+        // Merge model_extra_body from the active profile (if any) or the
+        // top-level config. Convert the TOML value to JSON for runtime use.
+        let model_extra_body_toml = config_profile
+            .model_extra_body
+            .clone()
+            .or(cfg.model_extra_body.clone());
+        let model_extra_body = model_extra_body_toml.and_then(|v| serde_json::to_value(&v).ok());
+
         let config = Self {
             model,
             review_model,
@@ -1015,6 +1033,7 @@ impl Config {
             model_auto_compact_token_limit,
             model_provider_id,
             model_provider,
+            model_extra_body,
             cwd: resolved_cwd,
             approval_policy: approval_policy
                 .or(config_profile.approval_policy)
@@ -1779,6 +1798,7 @@ model_verbosity = "high"
                 model_auto_compact_token_limit: None,
                 model_provider_id: "openai".to_string(),
                 model_provider: fixture.openai_provider.clone(),
+                model_extra_body: None,
                 approval_policy: AskForApproval::Never,
                 sandbox_policy: SandboxPolicy::new_read_only_policy(),
                 shell_environment_policy: ShellEnvironmentPolicy::default(),
@@ -1838,6 +1858,7 @@ model_verbosity = "high"
             model_auto_compact_token_limit: None,
             model_provider_id: "openai-chat-completions".to_string(),
             model_provider: fixture.openai_chat_completions_provider.clone(),
+            model_extra_body: None,
             approval_policy: AskForApproval::UnlessTrusted,
             sandbox_policy: SandboxPolicy::new_read_only_policy(),
             shell_environment_policy: ShellEnvironmentPolicy::default(),
@@ -1912,6 +1933,7 @@ model_verbosity = "high"
             model_auto_compact_token_limit: None,
             model_provider_id: "openai".to_string(),
             model_provider: fixture.openai_provider.clone(),
+            model_extra_body: None,
             approval_policy: AskForApproval::OnFailure,
             sandbox_policy: SandboxPolicy::new_read_only_policy(),
             shell_environment_policy: ShellEnvironmentPolicy::default(),
@@ -1972,6 +1994,7 @@ model_verbosity = "high"
             model_auto_compact_token_limit: None,
             model_provider_id: "openai".to_string(),
             model_provider: fixture.openai_provider.clone(),
+            model_extra_body: None,
             approval_policy: AskForApproval::OnFailure,
             sandbox_policy: SandboxPolicy::new_read_only_policy(),
             shell_environment_policy: ShellEnvironmentPolicy::default(),
